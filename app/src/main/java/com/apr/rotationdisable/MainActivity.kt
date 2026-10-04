@@ -1,76 +1,114 @@
 package com.apr.rotationdisable
 
+import android.graphics.Color
 import android.os.Bundle
+import android.view.Gravity
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import java.io.BufferedReader
-import java.io.InputStreamReader
 
 class MainActivity : ComponentActivity() {
+
+    private val bg = Color.rgb(246, 248, 252)
+    private val primary = Color.rgb(55, 105, 190)
+    private val text = Color.rgb(35, 45, 60)
+    private val secondary = Color.rgb(105, 115, 130)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(48, 64, 48, 48)
+            gravity = Gravity.CENTER_HORIZONTAL
+            setPadding(40, 56, 40, 40)
+            setBackgroundColor(bg)
         }
 
         val title = TextView(this).apply {
             text = "ביטול כפתור סיבוב מסך"
-            textSize = 26f
-            setPadding(0, 0, 0, 24)
+            textSize = 27f
+            setTextColor(text)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 12)
+        }
+
+        val subtitle = TextView(this).apply {
+            text = "שליטה בכפתור הצעת הסיבוב של Android"
+            textSize = 15f
+            setTextColor(secondary)
+            gravity = Gravity.CENTER
+            setPadding(0, 0, 0, 28)
         }
 
         val info = TextView(this).apply {
-            text = "האפליקציה משנה את הגדרת Android שמפעילה את הצעת הסיבוב שמופיעה כאשר סיבוב אוטומטי כבוי.\n\nנדרשת הרשאת Root. אם Magisk מותקן, הוא אמור להציג בקשת הרשאה בפעם הראשונה."
-            textSize = 16f
-            setPadding(0, 0, 0, 32)
+            text = "האפליקציה מאפשרת להפעיל או לבטל את כפתור הסיבוב שמופיע כאשר סיבוב אוטומטי כבוי.\\n\\nנדרשת הרשאת Root. אם Magisk מותקן, הוא אמור להציג בקשת הרשאה בפעם הראשונה."
+            textSize = 15f
+            setTextColor(text)
+            setPadding(0, 0, 0, 28)
         }
 
-        val disable = Button(this).apply {
-            text = "בטל את כפתור הסיבוב"
-            setOnClickListener { setRotationSuggestions(false) }
+        val disable = makeButton("בטל את כפתור הסיבוב") {
+            setRotationSuggestions(false)
         }
 
-        val enable = Button(this).apply {
-            text = "הפעל את כפתור הסיבוב"
-            setOnClickListener { setRotationSuggestions(true) }
+        val enable = makeButton("הפעל את כפתור הסיבוב") {
+            setRotationSuggestions(true)
         }
 
-        val check = Button(this).apply {
-            text = "בדוק מצב"
-            setOnClickListener { checkRotationSuggestions() }
+        val check = makeButton("בדוק מצב") {
+            checkRotationSuggestions()
+        }
+
+        val about = makeButton("אודות") {
+            android.app.AlertDialog.Builder(this)
+                .setTitle("אודות")
+                .setMessage("ביטול כפתור סיבוב מסך\\n\\nאפליקציה פשוטה לשליטה בהצעת הסיבוב של Android.\\n\\nקרדיט: y.b apps")
+                .setPositiveButton("סגור", null)
+                .show()
         }
 
         root.addView(title)
+        root.addView(subtitle)
         root.addView(info)
         root.addView(disable)
         root.addView(enable)
         root.addView(check)
+        root.addView(about)
+
         setContentView(root)
+    }
+
+    private fun makeButton(label: String, action: () -> Unit): Button {
+        return Button(this).apply {
+            text = label
+            textSize = 15f
+            setTextColor(Color.WHITE)
+            setBackgroundColor(primary)
+            setPadding(20, 14, 20, 14)
+            val params = LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT
+            )
+            params.setMargins(0, 0, 0, 14)
+            layoutParams = params
+            setOnClickListener { action() }
+        }
     }
 
     private fun setRotationSuggestions(enabled: Boolean) {
         val value = if (enabled) "1" else "0"
         val command = "settings put secure show_rotation_suggestions $value"
-        runAsRoot(command) { success, output ->
-            if (success) {
-                Toast.makeText(
-                    this,
-                    if (enabled) "כפתור הסיבוב הופעל" else "כפתור הסיבוב בוטל",
-                    Toast.LENGTH_LONG
-                ).show()
-            } else {
-                Toast.makeText(
-                    this,
-                    "לא ניתן לבצע את הפקודה. ודא ש-Magisk אישר Root.",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
+        runAsRoot(command) { success, _ ->
+            android.widget.Toast.makeText(
+                this,
+                if (success) {
+                    if (enabled) "כפתור הסיבוב הופעל" else "כפתור הסיבוב בוטל"
+                } else {
+                    "לא ניתן לבצע את הפקודה. ודא ש-Magisk אישר Root."
+                },
+                android.widget.Toast.LENGTH_LONG
+            ).show()
         }
     }
 
@@ -86,7 +124,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 "לא ניתן לקרוא את ההגדרה. נדרשת הרשאת Root."
             }
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+            android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
         }
     }
 
@@ -94,8 +132,8 @@ class MainActivity : ComponentActivity() {
         Thread {
             try {
                 val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
-                val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }
-                val error = BufferedReader(InputStreamReader(process.errorStream)).use { it.readText() }
+                val output = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream)).use { it.readText() }
+                val error = java.io.BufferedReader(java.io.InputStreamReader(process.errorStream)).use { it.readText() }
                 val exitCode = process.waitFor()
                 runOnUiThread {
                     callback(exitCode == 0, if (output.isNotBlank()) output else error)
