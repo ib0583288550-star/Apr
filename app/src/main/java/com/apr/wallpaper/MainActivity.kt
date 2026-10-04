@@ -1,4 +1,4 @@
-package com.apr.terminalbuttons
+package com.apr.wallpaper
 
 import android.content.Context
 import android.os.Bundle
