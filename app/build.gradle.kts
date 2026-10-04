@@ -3,24 +3,29 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
 android {
-    namespace="com.apr.wallpaper"
-    compileSdk=35
+    namespace = "com.apr.wallpaper"
+    compileSdk = 35
+
     defaultConfig {
-        applicationId="com.apr.wallpaper"
-        minSdk=26
-        targetSdk=35
+        applicationId = "com.apr.wallpaper"
+        minSdk = 26
+        targetSdk = 35
+        versionCode = 1
+        versionName = "1.0"
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+
     kotlinOptions {
         jvmTarget = "17"
     }
-        versionCode=1
-        versionName="1.0"
-    }
 }
+
 dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.10.1")
