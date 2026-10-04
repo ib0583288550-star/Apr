@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "com.apr.terminalbuttons"
+    namespace = "com.apr.rotationdisable"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.apr.terminalbuttons"
+        applicationId = "com.apr.rotationdisable"
         minSdk = 26
         targetSdk = 35
         versionCode = 2
