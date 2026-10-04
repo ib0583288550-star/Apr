@@ -42,9 +42,9 @@ class MainActivity : ComponentActivity() {
         }
 
         val info = TextView(this).apply {
-            text = "האפליקציה מאפשרת להפעיל או לבטל את כפתור הסיבוב שמופיע כאשר סיבוב אוטומטי כבוי.\\n\\nנדרשת הרשאת Root. אם Magisk מותקן, הוא אמור להציג בקשת הרשאה בפעם הראשונה."
+            text = "האפליקציה מאפשרת להפעיל או לבטל את כפתור הסיבוב שמופיע כאשר סיבוב אוטומטי כבוי.\n\nנדרשת הרשאת Root. אם Magisk מותקן, הוא אמור להציג בקשת הרשאה בפעם הראשונה."
             textSize = 15f
-            setTextColor(text)
+            setTextColor(textColor)
             setPadding(0, 0, 0, 28)
         }
 
@@ -63,7 +63,7 @@ class MainActivity : ComponentActivity() {
         val about = makeButton("אודות") {
             android.app.AlertDialog.Builder(this)
                 .setTitle("אודות")
-                .setMessage("ביטול כפתור סיבוב מסך\\n\\nאפליקציה פשוטה לשליטה בהצעת הסיבוב של Android.\\n\\nקרדיט: y.b apps")
+                .setMessage("ביטול כפתור סיבוב מסך\n\nאפליקציה פשוטה לשליטה בהצעת הסיבוב של Android.\n\nקרדיט: y.b apps")
                 .setPositiveButton("סגור", null)
                 .show()
         }
