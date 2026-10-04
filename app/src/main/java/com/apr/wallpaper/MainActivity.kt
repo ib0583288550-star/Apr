@@ -1,13 +1,11 @@
 package com.apr.wallpaper
 
-import android.app.WallpaperManager
-import android.content.Context
-import android.net.Uri
 import android.os.Bundle
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -15,144 +13,194 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.work.*
-import java.util.concurrent.TimeUnit
+import org.json.JSONArray
+import org.json.JSONObject
+
+data class TerminalButton(val id: Long, val title: String, val command: String)
+
+private val allowedCommands = setOf("echo","pwd","ls","date","whoami","id","uname","getprop")
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { WallpaperApp() }
+        setContent { TerminalButtonsApp() }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WallpaperApp() {
-    val context = LocalContext.current
-    var images by remember { mutableStateOf(loadImages(context)) }
-    var interval by remember { mutableStateOf(60L) }
+fun TerminalButtonsApp() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var buttons by remember { mutableStateOf(loadButtons(context)) }
+    var showAdd by remember { mutableStateOf(false) }
+    var output by remember { mutableStateOf<String?>(null) }
+    var runningId by remember { mutableStateOf<Long?>(null) }
 
-    val picker = rememberLauncherForActivityResult(
-        ActivityResultContracts.GetMultipleContents()
-    ) { uris ->
-        if (uris.isNotEmpty()) {
-            images = (images + uris.map(Uri::toString)).distinct()
-            saveImages(context, images)
-        }
+    fun save(list: List<TerminalButton>) {
+        buttons = list
+        saveButtons(context, list)
     }
 
     MaterialTheme {
-        Scaffold(topBar = { TopAppBar(title = { Text("מחליף הטפטים") }) }) { padding ->
+        Scaffold(
+            topBar = { TopAppBar(title = { Text("כפתורי טרמינל") }) },
+            floatingActionButton = {
+                FloatingActionButton(onClick = { showAdd = true }) { Text("+") }
+            }
+        ) { padding ->
             LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
+                modifier = Modifier.fillMaxSize().padding(padding).padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Text("טפטים", style = MaterialTheme.typography.headlineMedium)
-                    Text("הוסף תמונות ובחר כל כמה זמן להחליף את הטפט.")
+                    Text("צור כפתורים שמריצים פקודות Shell בטוחות במכשיר.",
+                        style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text("פקודות מותרות: ${allowedCommands.joinToString(", ")}",
+                        style = MaterialTheme.typography.bodySmall)
                 }
-                item {
-                    Button(
-                        onClick = { picker.launch("image/*") },
-                        modifier = Modifier.fillMaxWidth()
-                    ) { Text("הוסף תמונות מהטלפון") }
+                if (buttons.isEmpty()) {
+                    item {
+                        Card(Modifier.fillMaxWidth()) {
+                            Text("עדיין אין כפתורים. לחץ על + כדי להוסיף.",
+                                Modifier.padding(18.dp))
+                        }
+                    }
                 }
-                item {
-                    Text("החלפה כל: ${interval} דקות")
-                    Slider(
-                        value = interval.toFloat(),
-                        onValueChange = { interval = it.toLong() },
-                        valueRange = 1f..1440f,
-                        steps = 1439
-                    )
-                }
-                item {
-                    Button(
-                        onClick = { scheduleWallpaper(context, interval) },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = images.isNotEmpty()
-                    ) { Text("הפעל החלפה אוטומטית") }
-                }
-                item {
-                    OutlinedButton(
-                        onClick = { setFirstWallpaper(context, images) },
-                        modifier = Modifier.fillMaxWidth(),
-                        enabled = images.isNotEmpty()
-                    ) { Text("החלף עכשיו") }
-                }
-                item { Text("התמונות שנבחרו: ${images.size}") }
-                items(images) { uri ->
+                items(buttons, key = { it.id }) { button ->
                     Card(Modifier.fillMaxWidth()) {
                         Row(
-                            Modifier.padding(14.dp),
+                            Modifier.fillMaxWidth().padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(uri.substringAfterLast('/'), Modifier.weight(1f), maxLines = 1)
-                            TextButton(onClick = {
-                                images = images.filterNot { it == uri }
-                                saveImages(context, images)
-                            }) { Text("הסר") }
+                            Button(
+                                onClick = {
+                                    runningId = button.id
+                                    Thread {
+                                        val result = runSafeCommand(button.command)
+                                        Handler(Looper.getMainLooper()).post {
+                                            output = ">${button.command}\\n\\n${result}"
+                                            runningId = null
+                                        }
+                                    }.start()
+                                },
+                                enabled = runningId == null,
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(if (runningId == button.id) "מריץ..." else button.title)
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(
+                                onClick = { save(buttons.filterNot { it.id == button.id }) },
+                                enabled = runningId == null
+                            ) { Text("מחק") }
                         }
+                        Text(button.command,
+                            Modifier.padding(start = 14.dp, end = 14.dp, bottom = 14.dp),
+                            style = MaterialTheme.typography.bodySmall)
                     }
                 }
             }
         }
+
+        if (showAdd) {
+            AddButtonDialog(
+                onDismiss = { showAdd = false },
+                onAdd = { title, command ->
+                    save(buttons + TerminalButton(System.currentTimeMillis(), title, command))
+                    showAdd = false
+                }
+            )
+        }
+
+        output?.let { text ->
+            AlertDialog(
+                onDismissRequest = { output = null },
+                confirmButton = { TextButton(onClick = { output = null }) { Text("סגור") } },
+                title = { Text("תוצאת הפקודה") },
+                text = { Text(text, style = MaterialTheme.typography.bodyMedium) }
+            )
+        }
     }
 }
 
-private fun saveImages(context: Context, images: List<String>) {
-    context.getSharedPreferences("wallpapers", Context.MODE_PRIVATE)
-        .edit().putStringSet("images", images.toSet()).apply()
-}
+@Composable
+private fun AddButtonDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var command by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
 
-private fun loadImages(context: Context): List<String> =
-    context.getSharedPreferences("wallpapers", Context.MODE_PRIVATE)
-        .getStringSet("images", emptySet())?.toList() ?: emptyList()
-
-private fun setFirstWallpaper(context: Context, images: List<String>) {
-    if (images.isEmpty()) return
-    try {
-        context.contentResolver.openInputStream(Uri.parse(images.first()))?.use {
-            WallpaperManager.getInstance(context).setStream(it)
-        }
-    } catch (_: Exception) {}
-}
-
-private fun scheduleWallpaper(context: Context, minutes: Long) {
-    val request = PeriodicWorkRequestBuilder<WallpaperWorker>(
-        minutes.coerceAtLeast(15), TimeUnit.MINUTES
-    ).build()
-
-    WorkManager.getInstance(context).enqueueUniquePeriodicWork(
-        "wallpaper_rotation",
-        ExistingPeriodicWorkPolicy.UPDATE,
-        request
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("כפתור חדש") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedTextField(value = title, onValueChange = { title = it },
+                    label = { Text("שם הכפתור") }, singleLine = true)
+                OutlinedTextField(value = command, onValueChange = { command = it },
+                    label = { Text("פקודת טרמינל") },
+                    placeholder = { Text("לדוגמה: echo שלום") }, singleLine = true)
+                Text("כרגע אפשר להשתמש רק בפקודות בטוחות מהרשימה שבמסך הראשי.",
+                    style = MaterialTheme.typography.bodySmall)
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                val cleanTitle = title.trim()
+                val cleanCommand = command.trim()
+                val first = cleanCommand.split(Regex("\\s+")).firstOrNull().orEmpty()
+                when {
+                    cleanTitle.isEmpty() -> error = "צריך לתת שם לכפתור."
+                    cleanCommand.isEmpty() -> error = "צריך להכניס פקודה."
+                    first !in allowedCommands -> error = "הפקודה הזו לא מאושרת באפליקציה."
+                    else -> onAdd(cleanTitle, cleanCommand)
+                }
+            }) { Text("הוסף") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("ביטול") } }
     )
 }
 
-class WallpaperWorker(
-    appContext: Context,
-    params: WorkerParameters
-) : Worker(appContext, params) {
-
-    override fun doWork(): Result {
-        val images = loadImages(applicationContext)
-        if (images.isEmpty()) return Result.success()
-
-        val prefs = applicationContext.getSharedPreferences("wallpapers", Context.MODE_PRIVATE)
-        val index = (prefs.getInt("index", -1) + 1) % images.size
-        prefs.edit().putInt("index", index).apply()
-
-        return try {
-            applicationContext.contentResolver
-                .openInputStream(Uri.parse(images[index]))?.use {
-                    WallpaperManager.getInstance(applicationContext).setStream(it)
-                }
-            Result.success()
-        } catch (_: Exception) {
-            Result.retry()
-        }
+private fun runSafeCommand(command: String): String {
+    val first = command.trim().split(Regex("\\s+")).firstOrNull().orEmpty()
+    if (first !in allowedCommands) return "הפקודה לא מאושרת."
+    return try {
+        val process = ProcessBuilder("sh", "-c", command)
+            .redirectErrorStream(true).start()
+        val text = process.inputStream.bufferedReader().use { it.readText() }
+        val exit = process.waitFor()
+        "קוד יציאה: ${exit}\\n${text}".trim()
+    } catch (e: Exception) {
+        "שגיאה: ${e.message ?: "לא ידוע"}"
     }
+}
+
+private fun saveButtons(context: Context, buttons: List<TerminalButton>) {
+    val array = JSONArray()
+    buttons.forEach {
+        array.put(JSONObject().apply {
+            put("id", it.id); put("title", it.title); put("command", it.command)
+        })
+    }
+    context.getSharedPreferences("terminal_buttons", 0).edit()
+        .putString("buttons", array.toString()).apply()
+}
+
+private fun loadButtons(context: Context): List<TerminalButton> {
+    val raw = context.getSharedPreferences("terminal_buttons", 0)
+        .getString("buttons", "[]") ?: "[]"
+    return try {
+        val array = JSONArray(raw)
+        buildList {
+            for (i in 0 until array.length()) {
+                val item = array.getJSONObject(i)
+                add(TerminalButton(item.getLong("id"), item.getString("title"), item.getString("command")))
+            }
+        }
+    } catch (_: Exception) { emptyList() }
 }
