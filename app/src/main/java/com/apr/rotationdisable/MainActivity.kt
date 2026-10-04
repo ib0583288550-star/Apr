@@ -12,7 +12,7 @@ class MainActivity : ComponentActivity() {
 
     private val bg = Color.rgb(246, 248, 252)
     private val primary = Color.rgb(55, 105, 190)
-    private val text = Color.rgb(35, 45, 60)
+    private val textColor = Color.rgb(35, 45, 60)
     private val secondary = Color.rgb(105, 115, 130)
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -28,7 +28,7 @@ class MainActivity : ComponentActivity() {
         val title = TextView(this).apply {
             text = "ביטול כפתור סיבוב מסך"
             textSize = 27f
-            setTextColor(text)
+            setTextColor(textColor)
             gravity = Gravity.CENTER
             setPadding(0, 0, 0, 12)
         }
