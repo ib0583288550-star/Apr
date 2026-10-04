@@ -7,7 +7,7 @@
         android:label="ביטול חיישן סיבוב מסך"
         android:allowBackup="true"
         android:supportsRtl="true">
-        <activity android:name="com.apr.terminalbuttons.MainActivity" android:exported="true">
+        <activity android:name="com.apr.rotationdisable.MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
