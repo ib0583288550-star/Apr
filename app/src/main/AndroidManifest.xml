@@ -4,7 +4,7 @@
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
-        android:label="ביטול חיישן סיבוב מסך"
+        android:label="ביטול כפתור סיבוב מסך"
         android:allowBackup="true"
         android:supportsRtl="true">
         <activity android:name="com.apr.rotationdisable.MainActivity" android:exported="true">
