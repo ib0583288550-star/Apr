@@ -16,3 +16,5 @@
 
 ## התקנה
 מורידים את `app-debug` מתוך GitHub Actions ומתקינים את קובץ ה-APK במכשיר Android.
+
+<!-- CI trigger check 2026-10-04 -->
