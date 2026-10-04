@@ -106,7 +106,7 @@ fun TerminalButtonsApp() {
                                 Text("⌘", fontSize = 40.sp)
                                 Spacer(Modifier.height(8.dp))
                                 Text("עדיין אין כפתורים", fontWeight = FontWeight.Bold)
-                                Text("לחץ על "כפתור חדש" כדי להתחיל.", color = Color(0xFFB8C0D0))
+                                Text("לחץ על \"כפתור חדש\" כדי להתחיל.", color = Color(0xFFB8C0D0))
                             }
                         }
                     }
