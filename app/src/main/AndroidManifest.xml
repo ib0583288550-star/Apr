@@ -4,10 +4,12 @@
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
         android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
-        android:label="ביטול כפתור סיבוב מסך"
-        android:allowBackup="true"
+        android:label="ניהול משתמשים Root"
+        android:allowBackup="false"
         android:supportsRtl="true">
-        <activity android:name="com.apr.rotationdisable.MainActivity" android:exported="true">
+        <activity
+            android:name="com.yb.usersmanager.MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
