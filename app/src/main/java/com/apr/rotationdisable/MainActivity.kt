@@ -13,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,8 +33,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
+            var darkMode by remember { mutableStateOf(false) }
             MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF3F51B5))) {
-                UserSettingsScreen(manager)
+                UserSettingsScreen(manager, darkMode, { darkMode = it })
             }
         }
     }
@@ -41,7 +43,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun UserSettingsScreen(manager: RootUserManager) {
+private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDarkModeChange: (Boolean) -> Unit) {
     var users by remember { mutableStateOf(manager.listUsers()) }
     var currentId by remember { mutableStateOf(manager.currentUser()) }
     var maxUsers by remember { mutableStateOf(manager.maxUsers()) }
@@ -63,6 +65,9 @@ private fun UserSettingsScreen(manager: RootUserManager) {
             TopAppBar(
                 title = { Text("משתמשים") },
                 actions = {
+                    IconButton(onClick = { onDarkModeChange(!darkMode) }) {
+                        Icon(Icons.Default.DarkMode, contentDescription = "מצב כהה")
+                    }
                     IconButton(onClick = { refresh(); message = "הרשימה עודכנה" }) {
                         Icon(Icons.Default.Refresh, contentDescription = "רענן")
                     }
@@ -76,7 +81,7 @@ private fun UserSettingsScreen(manager: RootUserManager) {
         }
     ) { padding ->
         LazyColumn(
-            modifier = Modifier.fillMaxSize().background(Color(0xFFF7F7F7)).padding(padding),
+            modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).padding(padding),
             contentPadding = PaddingValues(bottom = 96.dp)
         ) {
             item {
@@ -217,7 +222,7 @@ private fun UserAvatar(id: Int, name: String) {
     val letter = name.trim().take(1).ifBlank { if (id == 0) "ב" else "מ" }
     val avatarColors = listOf(
         Color(0xFF5C6BC0), Color(0xFF26A69A), Color(0xFF8E7CC3),
-        Color(0xFFEF8A5B), Color(0xFF4FA3D1)
+        Color(0xFFEF8A5B), Color(0xFF4FA3D1), Color(0xFF7E57C2), Color(0xFF00897B)
     )
     val bg = avatarColors[kotlin.math.abs(id) % avatarColors.size]
 
