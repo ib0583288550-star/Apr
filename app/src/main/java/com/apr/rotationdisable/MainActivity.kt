@@ -48,6 +48,7 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
     var currentId by remember { mutableStateOf(manager.currentUser()) }
     var maxUsers by remember { mutableStateOf(manager.maxUsers()) }
     var rootOk by remember { mutableStateOf(manager.hasRoot()) }
+    var runningAsOwner by remember { mutableStateOf(manager.currentUserNonRoot() == 0) }
     var message by remember { mutableStateOf("") }
     var showAdd by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
@@ -55,6 +56,7 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
 
     fun refresh() {
         rootOk = manager.hasRoot()
+        runningAsOwner = manager.currentUserNonRoot() == 0
         users = manager.listUsers()
         currentId = manager.currentUser()
         maxUsers = manager.maxUsers()
@@ -75,7 +77,7 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
             )
         },
         floatingActionButton = {
-            val canAdd = maxUsers == null || users.size < maxUsers!!
+            val canAdd = runningAsOwner && rootOk && (maxUsers == null || users.size < maxUsers!!)
             FloatingActionButton(onClick = { if (canAdd) { newName = ""; showAdd = true } }) {
                 Icon(Icons.Default.Add, contentDescription = if (canAdd) "הוסף משתמש" else "הגעת למספר המשתמשים המרבי")
             }
@@ -96,7 +98,8 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        if (maxUsers != null) "עד ${maxUsers} משתמשים נתמכים במכשיר"
+                        if (!runningAsOwner) "ניהול מלא זמין רק במשתמש הראשי"
+                        else if (maxUsers != null) "עד ${maxUsers} משתמשים נתמכים במכשיר"
                         else "מספר המשתמשים המרבי לא ידוע",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
@@ -109,7 +112,9 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
                     user = user,
                     selected = user.id == currentId,
                     onClick = {
-                        if (user.id == currentId) {
+                        if (!rootOk) {
+                            message = "Root לא מורשה למשתמש הנוכחי. פתח את האפליקציה במשתמש הראשי."
+                        } else if (user.id == currentId) {
                             message = "זה המשתמש הפעיל כרגע"
                         } else {
                             message = manager.switchUser(user.id)
@@ -125,7 +130,7 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
                     HorizontalDivider()
                     Spacer(Modifier.height(12.dp))
                     Text(
-                        if (rootOk) "גישה למערכת: Root פעיל ✓" else "גישה למערכת: Root לא זמינה ✗",
+                        if (!runningAsOwner) "ניהול Root: זמין במשתמש הראשי בלבד" else if (rootOk) "גישה למערכת: Root פעיל ✓" else "גישה למערכת: Root לא מורשית ✗",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
@@ -152,7 +157,9 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
             },
             confirmButton = {
                 TextButton(onClick = {
-                    if (newName.isBlank()) {
+                    if (!runningAsOwner || !rootOk) {
+                        message = "יש לפתוח את האפליקציה במשתמש הראשי עם Root מורשה"
+                    } else if (newName.isBlank()) {
                         message = "יש להזין שם משתמש"
                     } else {
                         message = manager.createUser(newName.trim())
@@ -174,7 +181,7 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
             text = { Text("למחוק את המשתמש \"${user.name.ifBlank { "ללא שם" }}\"? הפעולה תמחק את נתוני המשתמש.") },
             confirmButton = {
                 TextButton(onClick = {
-                    message = manager.removeUser(user.id)
+                    message = if (!runningAsOwner || !rootOk) "יש לפתוח את האפליקציה במשתמש הראשי עם Root מורשה" else manager.removeUser(user.id)
                     deleteUser = null
                     refresh()
                 }) { Text("מחק") }
@@ -252,6 +259,13 @@ class RootUserManager {
     }
 
     fun hasRoot(): Boolean = runRoot("id").contains("uid=0")
+
+    fun currentUserNonRoot(): Int? = try {
+        val p = ProcessBuilder("am", "get-current-user").redirectErrorStream(true).start()
+        val text = BufferedReader(InputStreamReader(p.inputStream)).use { it.readText() }.trim()
+        p.waitFor()
+        Regex("""(\\d+)""").find(text)?.groupValues?.get(1)?.toIntOrNull()
+    } catch (_: Exception) { null }
 
     fun listUsers(): List<AndroidUser> {
         val out = runRoot("cmd user list")
