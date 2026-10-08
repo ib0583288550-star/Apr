@@ -1,146 +1,179 @@
-package com.apr.rotationdisable
+package com.yb.usersmanager
 
-import android.graphics.Color
 import android.os.Bundle
-import android.view.Gravity
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
+import java.io.BufferedReader
+import java.io.InputStreamReader
+
+data class AndroidUser(val id: Int, val name: String)
 
 class MainActivity : ComponentActivity() {
-
-    private val bg = Color.rgb(246, 248, 252)
-    private val primary = Color.rgb(55, 105, 190)
-    private val textColor = Color.rgb(35, 45, 60)
-    private val secondary = Color.rgb(105, 115, 130)
+    private val manager = RootUserManager()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        val root = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            setPadding(40, 56, 40, 40)
-            setBackgroundColor(bg)
-        }
-
-        val title = TextView(this).apply {
-            text = "ביטול כפתור סיבוב מסך"
-            textSize = 27f
-            setTextColor(textColor)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 12)
-        }
-
-        val subtitle = TextView(this).apply {
-            text = "שליטה בכפתור הצעת הסיבוב של Android"
-            textSize = 15f
-            setTextColor(secondary)
-            gravity = Gravity.CENTER
-            setPadding(0, 0, 0, 28)
-        }
-
-        val info = TextView(this).apply {
-            text = "האפליקציה מאפשרת להפעיל או לבטל את כפתור הסיבוב שמופיע כאשר סיבוב אוטומטי כבוי.\n\nנדרשת הרשאת Root. אם Magisk מותקן, הוא אמור להציג בקשת הרשאה בפעם הראשונה."
-            textSize = 15f
-            setTextColor(textColor)
-            setPadding(0, 0, 0, 28)
-        }
-
-        val disable = makeButton("בטל את כפתור הסיבוב") {
-            setRotationSuggestions(false)
-        }
-
-        val enable = makeButton("הפעל את כפתור הסיבוב") {
-            setRotationSuggestions(true)
-        }
-
-        val check = makeButton("בדוק מצב") {
-            checkRotationSuggestions()
-        }
-
-        val about = makeButton("אודות") {
-            android.app.AlertDialog.Builder(this)
-                .setTitle("אודות")
-                .setMessage("ביטול כפתור סיבוב מסך\n\nאפליקציה פשוטה לשליטה בהצעת הסיבוב של Android.\n\nקרדיט: y.b apps")
-                .setPositiveButton("סגור", null)
-                .show()
-        }
-
-        root.addView(title)
-        root.addView(subtitle)
-        root.addView(info)
-        root.addView(disable)
-        root.addView(enable)
-        root.addView(check)
-        root.addView(about)
-
-        setContentView(root)
-    }
-
-    private fun makeButton(label: String, action: () -> Unit): Button {
-        return Button(this).apply {
-            text = label
-            textSize = 15f
-            setTextColor(Color.WHITE)
-            setBackgroundColor(primary)
-            setPadding(20, 14, 20, 14)
-            val params = LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            )
-            params.setMargins(0, 0, 0, 14)
-            layoutParams = params
-            setOnClickListener { action() }
-        }
-    }
-
-    private fun setRotationSuggestions(enabled: Boolean) {
-        val value = if (enabled) "1" else "0"
-        val command = "settings put secure show_rotation_suggestions $value"
-        runAsRoot(command) { success, _ ->
-            android.widget.Toast.makeText(
-                this,
-                if (success) {
-                    if (enabled) "כפתור הסיבוב הופעל" else "כפתור הסיבוב בוטל"
-                } else {
-                    "לא ניתן לבצע את הפקודה. ודא ש-Magisk אישר Root."
-                },
-                android.widget.Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    private fun checkRotationSuggestions() {
-        runAsRoot("settings get secure show_rotation_suggestions") { success, output ->
-            val state = output.trim()
-            val message = if (success) {
-                when (state) {
-                    "0" -> "כפתור הסיבוב: מבוטל"
-                    "1" -> "כפתור הסיבוב: פעיל"
-                    else -> "הערך הנוכחי: $state"
-                }
-            } else {
-                "לא ניתן לקרוא את ההגדרה. נדרשת הרשאת Root."
+        setContent {
+            MaterialTheme {
+                UserManagerScreen(manager)
             }
-            android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+@Composable
+private fun UserManagerScreen(manager: RootUserManager) {
+    var users by remember { mutableStateOf(manager.listUsers()) }
+    var maxUsers by remember { mutableStateOf(manager.maxUsers()) }
+    var rootOk by remember { mutableStateOf(manager.hasRoot()) }
+    var newName by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+
+    fun refresh() {
+        rootOk = manager.hasRoot()
+        users = manager.listUsers()
+        maxUsers = manager.maxUsers()
+    }
+
+    Scaffold(
+        topBar = {
+            TopAppBar(title = { Text("ניהול משתמשים Root") })
+        }
+    ) { padding ->
+        Column(
+            modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Card(Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(if (rootOk) "Root: מחובר ✓" else "Root: לא זמין ✗")
+                    Text("משתמשים קיימים: ${users.size}")
+                    Text("מקסימום נתמך: ${maxUsers ?: "לא ידוע"}")
+                }
+            }
+
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = newName,
+                    onValueChange = { newName = it },
+                    modifier = Modifier.weight(1f),
+                    label = { Text("שם משתמש חדש") },
+                    singleLine = true
+                )
+                Button(onClick = {
+                    if (newName.isBlank()) {
+                        message = "כתוב שם למשתמש"
+                    } else {
+                        message = manager.createUser(newName.trim())
+                        newName = ""
+                        refresh()
+                    }
+                }) { Text("צור") }
+            }
+
+            Button(
+                onClick = { refresh(); message = "הרשימה עודכנה" },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("רענן") }
+
+            if (message.isNotBlank()) {
+                Text(message, style = MaterialTheme.typography.bodyMedium)
+            }
+
+            Text("משתמשים", style = MaterialTheme.typography.titleLarge)
+
+            LazyColumn(
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(users, key = { it.id }) { user ->
+                    Card(Modifier.fillMaxWidth()) {
+                        Row(
+                            Modifier.padding(12.dp).fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(user.name.ifBlank { "ללא שם" })
+                                Text("ID: ${user.id}", style = MaterialTheme.typography.bodySmall)
+                            }
+                            Button(onClick = {
+                                message = manager.switchUser(user.id)
+                                refresh()
+                            }) { Text("עבור") }
+                            if (user.id != 0) {
+                                OutlinedButton(onClick = {
+                                    message = manager.removeUser(user.id)
+                                    refresh()
+                                }) { Text("מחק") }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+class RootUserManager {
+    private fun runRoot(command: String): String {
+        return try {
+            val p = ProcessBuilder("su", "-c", command)
+                .redirectErrorStream(true)
+                .start()
+            val text = BufferedReader(InputStreamReader(p.inputStream)).use { it.readText() }.trim()
+            p.waitFor()
+            text
+        } catch (e: Exception) {
+            "ERROR: ${e.message ?: "unknown"}"
         }
     }
 
-    private fun runAsRoot(command: String, callback: (Boolean, String) -> Unit) {
-        Thread {
-            try {
-                val process = Runtime.getRuntime().exec(arrayOf("su", "-c", command))
-                val output = java.io.BufferedReader(java.io.InputStreamReader(process.inputStream)).use { it.readText() }
-                val error = java.io.BufferedReader(java.io.InputStreamReader(process.errorStream)).use { it.readText() }
-                val exitCode = process.waitFor()
-                runOnUiThread {
-                    callback(exitCode == 0, if (output.isNotBlank()) output else error)
-                }
-            } catch (e: Exception) {
-                runOnUiThread { callback(false, e.message ?: "") }
-            }
-        }.start()
+    fun hasRoot(): Boolean {
+        val out = runRoot("id")
+        return out.contains("uid=0")
+    }
+
+    fun listUsers(): List<AndroidUser> {
+        val out = runRoot("cmd user list")
+        if (out.startsWith("ERROR")) return emptyList()
+        return out.lineSequence().mapNotNull { line ->
+            val m = Regex("""UserInfo\{(\d+):([^:}]*)""").find(line) ?: return@mapNotNull null
+            AndroidUser(m.groupValues[1].toInt(), m.groupValues[2])
+        }.toList()
+    }
+
+    fun maxUsers(): Int? {
+        val out = runRoot("pm get-max-users")
+        return Regex("""(\d+)""").find(out)?.groupValues?.get(1)?.toIntOrNull()
+    }
+
+    fun createUser(name: String): String {
+        val safe = name.replace("'", "'\\''")
+        val out = runRoot("cmd user create '$safe'")
+        return if (out.contains("Success", true)) "המשתמש נוצר בהצלחה" else out
+    }
+
+    fun switchUser(id: Int): String {
+        val out = runRoot("am switch-user $id")
+        return if (out.isBlank()) "בוצע מעבר למשתמש $id" else out
+    }
+
+    fun removeUser(id: Int): String {
+        if (id == 0) return "אי אפשר למחוק את הבעלים"
+        val out = runRoot("cmd user remove $id")
+        return if (out.contains("Success", true) || out.isBlank()) "המשתמש נמחק" else out
     }
 }
