@@ -90,7 +90,7 @@ private fun UserSettingsScreen(manager: RootUserManager) {
                     )
                     Spacer(Modifier.height(10.dp))
                     Text(
-                        if (maxUsers != null) "עד @@{maxUsers} משתמשים נתמכים במכשיר"
+                        if (maxUsers != null) "עד ${maxUsers} משתמשים נתמכים במכשיר"
                         else "מספר המשתמשים המרבי לא ידוע",
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
@@ -165,7 +165,7 @@ private fun UserSettingsScreen(manager: RootUserManager) {
         AlertDialog(
             onDismissRequest = { deleteUser = null },
             title = { Text("מחיקת משתמש") },
-            text = { Text("למחוק את המשתמש \"@@{user.name.ifBlank { "ללא שם" }}\"? הפעולה תמחק את נתוני המשתמש.") },
+            text = { Text("למחוק את המשתמש \"${user.name.ifBlank { "ללא שם" }}\"? הפעולה תמחק את נתוני המשתמש.") },
             confirmButton = {
                 TextButton(onClick = {
                     message = manager.removeUser(user.id)
@@ -195,7 +195,7 @@ private fun UserSettingsRow(
         Spacer(Modifier.width(16.dp))
         Column(Modifier.weight(1f)) {
             Text(
-                user.name.ifBlank { if (user.id == 0) "בעלים" else "משתמש @@{user.id}" },
+                user.name.ifBlank { if (user.id == 0) "בעלים" else "משתמש ${user.id}" },
                 style = MaterialTheme.typography.bodyLarge
             )
             Text(
@@ -241,7 +241,7 @@ class RootUserManager {
             p.waitFor()
             text
         } catch (e: Exception) {
-            "ERROR: @@{e.message ?: "unknown"}"
+            "ERROR: ${e.message ?: "unknown"}"
         }
     }
 
