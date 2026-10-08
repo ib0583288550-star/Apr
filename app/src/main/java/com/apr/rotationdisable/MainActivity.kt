@@ -34,7 +34,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             var darkMode by remember { mutableStateOf(false) }
-            MaterialTheme(colorScheme = lightColorScheme(primary = Color(0xFF3F51B5))) {
+            MaterialTheme(colorScheme = if (darkMode) darkColorScheme(primary = Color(0xFF9FA8DA)) else lightColorScheme(primary = Color(0xFF3F51B5))) {
                 UserSettingsScreen(manager, darkMode, { darkMode = it })
             }
         }
@@ -75,8 +75,9 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { newName = ""; showAdd = true }) {
-                Icon(Icons.Default.Add, contentDescription = "הוסף משתמש")
+            val canAdd = maxUsers == null || users.size < maxUsers!!
+            FloatingActionButton(onClick = { if (canAdd) { newName = ""; showAdd = true } }) {
+                Icon(Icons.Default.Add, contentDescription = if (canAdd) "הוסף משתמש" else "הגעת למספר המשתמשים המרבי")
             }
         }
     ) { padding ->
