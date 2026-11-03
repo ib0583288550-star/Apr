@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
     <application
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
-        android:theme="@android:style/Theme.DeviceDefault.Light.NoActionBar"
-        android:label="ניהול משתמשים Root"
+        android:theme="@android:style/Theme.Material.NoActionBar"
+        android:label="בקרת סיבוב מסך"
         android:allowBackup="false"
         android:supportsRtl="true">
         <activity
@@ -15,16 +16,5 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <service
-            android:name="com.yb.usersmanager.UsersQuickSettingsTile"
-            android:label="משתמשים"
-            android:icon="@drawable/ic_launcher"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
-        </service>
     </application>
 </manifest>
