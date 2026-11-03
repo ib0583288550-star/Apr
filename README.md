@@ -15,3 +15,8 @@
 
 ## בנייה
 GitHub Actions בונה Debug APK ומעלה אותו כ-artifact בשם `app-debug`.
+
+
+## Users Manager branch
+
+This branch restores the Root Android multi-user manager with user switching and real user creation.
