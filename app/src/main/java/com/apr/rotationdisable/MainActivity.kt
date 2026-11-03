@@ -53,6 +53,7 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
     var showAdd by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
     var deleteUser by remember { mutableStateOf<AndroidUser?>(null) }
+    val canCreateUser = runningAsOwner && rootOk && (maxUsers == null || users.size < maxUsers!!)
 
     fun refresh() {
         rootOk = manager.hasRoot()
@@ -77,9 +78,15 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
             )
         },
         floatingActionButton = {
-            val canAdd = runningAsOwner && rootOk && (maxUsers == null || users.size < maxUsers!!)
-            FloatingActionButton(onClick = { if (canAdd) { newName = ""; showAdd = true } }) {
-                Icon(Icons.Default.Add, contentDescription = if (canAdd) "הוסף משתמש" else "הגעת למספר המשתמשים המרבי")
+            FloatingActionButton(onClick = {
+                if (canCreateUser) { newName = ""; showAdd = true }
+                else message = when {
+                    !runningAsOwner -> "כדי ליצור משתמש חדש, פתח את האפליקציה במשתמש הראשי (Owner)."
+                    !rootOk -> "אין הרשאת Root. אשר את בקשת Root לאפליקציה ונסה שוב."
+                    else -> "הגעת למספר המשתמשים המרבי שהמכשיר מאפשר."
+                }
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "יצירת משתמש חדש")
             }
         }
     ) { padding ->
@@ -104,6 +111,23 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Gray
                     )
+                    Spacer(Modifier.height(16.dp))
+                    Button(
+                        onClick = {
+                            if (canCreateUser) { newName = ""; showAdd = true }
+                            else message = when {
+                                !runningAsOwner -> "כדי ליצור משתמש חדש, פתח את האפליקציה במשתמש הראשי (Owner)."
+                                !rootOk -> "אין הרשאת Root. אשר את בקשת Root לאפליקציה ונסה שוב."
+                                else -> "הגעת למספר המשתמשים המרבי שהמכשיר מאפשר."
+                            }
+                        },
+                        enabled = canCreateUser,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("יצירת משתמש חדש")
+                    }
                 }
             }
 
@@ -260,12 +284,8 @@ class RootUserManager {
 
     fun hasRoot(): Boolean = runRoot("id").contains("uid=0")
 
-    fun currentUserNonRoot(): Int? = try {
-        val p = ProcessBuilder("am", "get-current-user").redirectErrorStream(true).start()
-        val text = BufferedReader(InputStreamReader(p.inputStream)).use { it.readText() }.trim()
-        p.waitFor()
-        Regex("""(\\d+)""").find(text)?.groupValues?.get(1)?.toIntOrNull()
-    } catch (_: Exception) { null }
+    fun currentUserNonRoot(): Int? =
+        Regex("""(\d+)""").find(runRoot("am get-current-user"))?.groupValues?.get(1)?.toIntOrNull()
 
     fun listUsers(): List<AndroidUser> {
         val out = runRoot("cmd user list")
