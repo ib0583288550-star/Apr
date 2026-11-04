@@ -17,6 +17,9 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,6 +55,8 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
     var message by remember { mutableStateOf("") }
     var showAdd by remember { mutableStateOf(false) }
     var newName by remember { mutableStateOf("") }
+    var creatingUser by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     var deleteUser by remember { mutableStateOf<AndroidUser?>(null) }
     val canCreateUser = runningAsOwner && rootOk && (maxUsers == null || users.size < maxUsers!!)
 
@@ -180,20 +185,36 @@ private fun UserSettingsScreen(manager: RootUserManager, darkMode: Boolean, onDa
                 )
             },
             confirmButton = {
-                TextButton(onClick = {
-                    if (!runningAsOwner || !rootOk) {
-                        message = "יש לפתוח את האפליקציה במשתמש הראשי עם Root מורשה"
-                    } else if (newName.isBlank()) {
-                        message = "יש להזין שם משתמש"
-                    } else {
-                        message = manager.createUser(newName.trim())
-                        showAdd = false
-                        refresh()
+                TextButton(
+                    enabled = !creatingUser,
+                    onClick = {
+                        if (!runningAsOwner || !rootOk) {
+                            message = "יש לפתוח את האפליקציה במשתמש הראשי עם Root מורשה"
+                        } else if (newName.isBlank()) {
+                            message = "יש להזין שם משתמש"
+                        } else {
+                            creatingUser = true
+                            scope.launch {
+                                val result = withContext(Dispatchers.IO) {
+                                    manager.createUser(newName.trim())
+                                }
+                                message = result
+                                creatingUser = false
+                                showAdd = false
+                                withContext(Dispatchers.IO) {
+                                    users = manager.listUsers()
+                                    currentId = manager.currentUser()
+                                    maxUsers = manager.maxUsers()
+                                    rootOk = manager.hasRoot()
+                                    runningAsOwner = manager.currentUserNonRoot() == 0
+                                }
+                            }
+                        }
                     }
-                }) { Text("הוסף") }
+                ) { Text(if (creatingUser) "יוצר משתמש..." else "הוסף") }
             },
             dismissButton = {
-                TextButton(onClick = { showAdd = false }) { Text("ביטול") }
+                TextButton(enabled = !creatingUser, onClick = { showAdd = false }) { Text("ביטול") }
             }
         )
     }
@@ -304,8 +325,40 @@ class RootUserManager {
 
     fun createUser(name: String): String {
         val safe = name.replace("'", "'\\''")
-        val out = runRoot("cmd user create '$safe'")
-        return if (out.contains("Success", true)) "המשתמש נוצר בהצלחה" else out
+        val commands = listOf("cmd user create '$safe'", "pm create-user '$safe'")
+        var lastOutput = ""
+        var lastExit = -1
+        for (command in commands) {
+            val result = runRootDetailed(command)
+            lastOutput = result.first
+            lastExit = result.second
+            if (lastExit == 0 && (lastOutput.contains("Success", true) ||
+                Regex("created user id\\s+\\d+", RegexOption.IGNORE_CASE).containsMatchIn(lastOutput))) {
+                return "המשתמש נוצר בהצלחה. $lastOutput"
+            }
+            if (lastOutput.contains("maximum number", true) || lastOutput.contains("too many users", true)) {
+                return "אי אפשר ליצור משתמש נוסף: המכשיר הגיע למספר המשתמשים המרבי. $lastOutput"
+            }
+            if (lastOutput.contains("not allowed", true) || lastOutput.contains("not supported", true)) {
+                return "המערכת חסמה יצירת משתמש במכשיר הזה. $lastOutput"
+            }
+        }
+        return "יצירת המשתמש נכשלה (קוד $lastExit). פלט המערכת: ${lastOutput.ifBlank { "לא התקבלה תשובה מהמערכת" }}"
+    }
+
+    private fun runRootDetailed(command: String): Pair<String, Int> {
+        return try {
+            val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
+            val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }.trim()
+            val finished = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
+            if (!finished) {
+                process.destroyForcibly()
+                return "הפקודה לא הסתיימה בתוך 30 שניות" to -1
+            }
+            output to process.exitValue()
+        } catch (e: Exception) {
+            "שגיאת Root: ${e.message ?: "unknown"}" to -1
+        }
     }
 
     fun switchUser(id: Int): String {
