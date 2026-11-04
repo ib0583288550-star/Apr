@@ -47,8 +47,6 @@ class MainActivity : ComponentActivity() {
                     refreshKey = refreshState,
                     hidden = rotationSuggestionHidden,
                     message = message,
-                    onEnable = { setAutoRotate(true) },
-                    onDisable = { setAutoRotate(false) },
                     onHideSuggestion = { setRotationSuggestion(true) },
                     onShowSuggestion = { setRotationSuggestion(false) }
                 )
@@ -60,15 +58,6 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         refreshState++
         refreshRotationSuggestion()
-    }
-
-    private fun setAutoRotate(enabled: Boolean) {
-        if (!Settings.System.canWrite(this)) {
-            startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName")))
-            return
-        }
-        Settings.System.putInt(contentResolver, Settings.System.ACCELEROMETER_ROTATION, if (enabled) 1 else 0)
-        refreshState++
     }
 
     private fun rootCommand(command: String): Pair<Int, String> {
@@ -127,16 +116,9 @@ private fun RotationScreen(
     refreshKey: Int,
     hidden: Boolean?,
     message: String,
-    onEnable: () -> Unit,
-    onDisable: () -> Unit,
     onHideSuggestion: () -> Unit,
     onShowSuggestion: () -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val allowed = remember(refreshKey) { Settings.System.canWrite(context) }
-    val enabled = remember(refreshKey, allowed) {
-        if (allowed) Settings.System.getInt(context.contentResolver, Settings.System.ACCELEROMETER_ROTATION, 0) == 1 else false
-    }
     Box(
         modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF101A38), Navy, Color(0xFF17102D))))
             .systemBarsPadding().padding(horizontal = 22.dp, vertical = 18.dp)
@@ -148,17 +130,8 @@ private fun RotationScreen(
             }
             Spacer(Modifier.height(14.dp))
             Text("בקרת סיבוב מסך", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-            Text("שליטה בסיבוב ובהצעת הסיבוב של Android", fontSize = 13.sp, color = Color(0xFFADB9D6), textAlign = TextAlign.Center)
+            Text("ביטול כפתור הצעת הסיבוב של Android", fontSize = 13.sp, color = Color(0xFFADB9D6), textAlign = TextAlign.Center)
             Spacer(Modifier.height(18.dp))
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xCC192541))) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("סיבוב אוטומטי", color = Color(0xFF9EACCC), fontSize = 13.sp)
-                    Text(if (enabled) "פעיל" else "כבוי", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = { if (allowed) onEnable() else context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth()) { Text("הפעלת סיבוב אוטומטי") }
-                    OutlinedButton(onClick = { if (allowed) onDisable() else context.startActivity(Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:${context.packageName}"))) }, modifier = Modifier.fillMaxWidth()) { Text("ביטול סיבוב אוטומטי") }
-                }
-            }
             Spacer(Modifier.height(14.dp))
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xCC192541))) {
                 Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
