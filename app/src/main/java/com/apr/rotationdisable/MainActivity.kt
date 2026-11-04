@@ -324,26 +324,17 @@ class RootUserManager {
         Regex("""(\d+)""").find(runRoot("pm get-max-users"))?.groupValues?.get(1)?.toIntOrNull()
 
     fun createUser(name: String): String {
-        val safe = name.replace("'", "'\\''")
-        val commands = listOf("cmd user create '$safe'", "pm create-user '$safe'")
-        var lastOutput = ""
-        var lastExit = -1
-        for (command in commands) {
-            val result = runRootDetailed(command)
-            lastOutput = result.first
-            lastExit = result.second
-            if (lastExit == 0 && (lastOutput.contains("Success", true) ||
-                Regex("created user id\\s+\\d+", RegexOption.IGNORE_CASE).containsMatchIn(lastOutput))) {
-                return "המשתמש נוצר בהצלחה. $lastOutput"
-            }
-            if (lastOutput.contains("maximum number", true) || lastOutput.contains("too many users", true)) {
-                return "אי אפשר ליצור משתמש נוסף: המכשיר הגיע למספר המשתמשים המרבי. $lastOutput"
-            }
-            if (lastOutput.contains("not allowed", true) || lastOutput.contains("not supported", true)) {
-                return "המערכת חסמה יצירת משתמש במכשיר הזה. $lastOutput"
-            }
+        val safe = name.filter { it.isLetterOrDigit() || it == ' ' || it == '_' || it == '-' }
+        if (safe.isBlank()) return "יש להזין שם משתמש תקין"
+        val result = runRootDetailed("pm create-user \"" + safe + "\"")
+        val output = result.first
+        val exitCode = result.second
+        val id = Regex("created user id\\s+(\\d+)", RegexOption.IGNORE_CASE).find(output)?.groupValues?.get(1)
+        return if (exitCode == 0 && (id != null || output.contains("Success", true))) {
+            "המשתמש נוצר בהצלחה" + (id?.let { " (מזהה: $it)" } ?: "")
+        } else {
+            "יצירת המשתמש נכשלה (קוד $exitCode). פלט המערכת: " + output.ifBlank { "לא התקבלה תשובה מהמערכת" }
         }
-        return "יצירת המשתמש נכשלה (קוד $lastExit). פלט המערכת: ${lastOutput.ifBlank { "לא התקבלה תשובה מהמערכת" }}"
     }
 
     private fun runRootDetailed(command: String): Pair<String, Int> {
