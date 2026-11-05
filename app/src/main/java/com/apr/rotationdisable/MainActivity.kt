@@ -327,6 +327,7 @@ class RootUserManager {
         val safe = name.filter { it.isLetterOrDigit() || it == ' ' || it == '_' || it == '-' }
         if (safe.isBlank()) return "יש להזין שם משתמש תקין"
         // Remove Android restriction that blocks adding users, then create the requested user.
+        // If the device enforces a non-removable base restriction, the system may still reject creation.
         val result = runRootDetailed("pm set-user-restriction no_add_user 0 && pm create-user '" + safe + "'")
         val output = result.first
         val exitCode = result.second
