@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ "main", "users-manager-fix-no-add-user" ]
+    branches: [ "main", "users-manager-fix-no-add-user", "disable-rotation-suggestion", "full-360-rotation" ]
   workflow_dispatch:
 
 jobs:
