@@ -1,5 +1,7 @@
 package com.yb.usersmanager
 
+import com.apr.rotationdisable.FullRotationService
+
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
