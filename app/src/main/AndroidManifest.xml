@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.WRITE_SETTINGS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
         android:icon="@drawable/ic_launcher"
         android:roundIcon="@drawable/ic_launcher"
@@ -8,6 +11,14 @@
         android:label="בקרת סיבוב מסך"
         android:allowBackup="false"
         android:supportsRtl="true">
+        <service
+            android:name="com.apr.rotationdisable.FullRotationService"
+            android:exported="false"
+            android:foregroundServiceType="specialUse">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Root-based sensor rotation controller for full 360 degree screen rotation" />
+        </service>
         <activity
             android:name="com.yb.usersmanager.MainActivity"
             android:exported="true">
