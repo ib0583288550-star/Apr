@@ -48,7 +48,15 @@ class MainActivity : ComponentActivity() {
                     hidden = rotationSuggestionHidden,
                     message = message,
                     onHideSuggestion = { setRotationSuggestion(true) },
-                    onShowSuggestion = { setRotationSuggestion(false) }
+                    onShowSuggestion = { setRotationSuggestion(false) },
+                    onStartFullRotation = {
+                        startForegroundService(Intent(this, FullRotationService::class.java))
+                        message = "מפעיל סיבוב מלא דרך Root…"
+                    },
+                    onStopFullRotation = {
+                        stopService(Intent(this, FullRotationService::class.java))
+                        message = "הסיבוב המלא הופסק וההגדרה הרגילה הוחזרה"
+                    }
                 )
             }
         }
@@ -117,7 +125,9 @@ private fun RotationScreen(
     hidden: Boolean?,
     message: String,
     onHideSuggestion: () -> Unit,
-    onShowSuggestion: () -> Unit
+    onShowSuggestion: () -> Unit,
+    onStartFullRotation: () -> Unit,
+    onStopFullRotation: () -> Unit
 ) {
     Box(
         modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF101A38), Navy, Color(0xFF17102D))))
@@ -143,6 +153,15 @@ private fun RotationScreen(
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = onHideSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != true, colors = ButtonDefaults.buttonColors(containerColor = Blue)) { Text("הסתרת הכפתור") }
                     OutlinedButton(onClick = onShowSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != false) { Text("החזרת הכפתור") }
+                    Divider(color = Color(0x334477FF), modifier = Modifier.padding(vertical = 10.dp))
+                    Text("סיבוב מלא 360°", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                    Text("כולל מצב הפוך של 180° — גם אם Android מסתיר אותו כברירת מחדל", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Spacer(Modifier.height(10.dp))
+                    Button(onClick = onStartFullRotation, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Mint)) {
+                        Text("הפעלת סיבוב מלא", color = Navy, fontWeight = FontWeight.Bold)
+                    }
+                    OutlinedButton(onClick = onStopFullRotation, modifier = Modifier.fillMaxWidth()) { Text("הפסקת סיבוב מלא") }
+                    Text("המצב המלא נשאר פעיל כל עוד השירות פועל. נדרשת הרשאת Root.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
                     Text("הפעולה משנה את הגדרת Android דרך Root ואינה מכבה את הסיבוב האוטומטי.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
                 }
             }
