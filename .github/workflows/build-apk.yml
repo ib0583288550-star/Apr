@@ -2,7 +2,7 @@ name: Build APK
 
 on:
   push:
-    branches: [ "main", "disable-rotation-suggestion" ]
+    branches: [ "main", "disable-rotation-suggestion", "full-360-rotation" ]
   workflow_dispatch:
 
 jobs:
