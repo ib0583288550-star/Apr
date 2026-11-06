@@ -9,10 +9,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.apr.rotationcontrol"
+        // New permanent ID: install alongside the old package, then keep this ID for every update.
+        applicationId = "com.ybapps.rotationcontrol"
         minSdk = 26
         targetSdk = 35
-        versionCode = 5
+        versionCode = 6
         versionName = "1.4"
     }
 
