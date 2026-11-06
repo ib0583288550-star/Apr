@@ -3,15 +3,15 @@ package com.yb.usersmanager
 import com.apr.rotationdisable.FullRotationService
 
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
-import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material.icons.filled.Settings
@@ -47,7 +47,6 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(colorScheme = darkColorScheme(primary = Blue, secondary = Violet, background = Navy, surface = Color(0xFF151D33))) {
                 RotationScreen(
-                    refreshKey = refreshState,
                     hidden = rotationSuggestionHidden,
                     message = message,
                     sensitivityDegrees = sensitivityDegrees,
@@ -70,7 +69,7 @@ class MainActivity : ComponentActivity() {
                     },
                     onStopFullRotation = {
                         stopService(Intent(this, FullRotationService::class.java))
-                        message = "הסיבוב המלא הופסק וההגדרה הרגילה הוחזרה"
+                        message = "הסיבוב הופסק — המסך נשאר נעול בכיוון הנוכחי"
                     }
                 )
             }
@@ -136,7 +135,6 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun RotationScreen(
-    refreshKey: Int,
     hidden: Boolean?,
     message: String,
     sensitivityDegrees: Int,
@@ -147,60 +145,63 @@ private fun RotationScreen(
     onStartPortraitOnly: () -> Unit,
     onStopFullRotation: () -> Unit
 ) {
+    var selectedTab by remember { mutableIntStateOf(0) }
     Box(
-        modifier = Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color(0xFF101A38), Navy, Color(0xFF17102D))))
-            .systemBarsPadding().padding(horizontal = 22.dp, vertical = 18.dp)
+        modifier = Modifier.fillMaxSize()
+            .background(Brush.verticalGradient(listOf(Color(0xFF101A38), Navy, Color(0xFF17102D))))
+            .systemBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
     ) {
         Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Spacer(Modifier.height(12.dp))
-            Box(Modifier.size(76.dp).shadow(22.dp, CircleShape).background(Brush.linearGradient(listOf(Blue, Violet)), CircleShape), contentAlignment = Alignment.Center) {
-                Icon(Icons.Filled.ScreenRotation, null, tint = Color.White, modifier = Modifier.size(44.dp))
+            Spacer(Modifier.height(6.dp))
+            Box(Modifier.size(66.dp).shadow(22.dp, CircleShape).background(Brush.linearGradient(listOf(Blue, Violet)), CircleShape), contentAlignment = Alignment.Center) {
+                Icon(Icons.Filled.ScreenRotation, null, tint = Color.White, modifier = Modifier.size(38.dp))
             }
+            Spacer(Modifier.height(10.dp))
+            Text("בקרת סיבוב מסך", fontSize = 24.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+            Text("שליטה בכפתור ההצעה ובסיבוב האמיתי", fontSize = 12.sp, color = Color(0xFFADB9D6), textAlign = TextAlign.Center)
             Spacer(Modifier.height(14.dp))
-            Text("בקרת סיבוב מסך", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
-            Text("ביטול כפתור הצעת הסיבוב של Android", fontSize = 13.sp, color = Color(0xFFADB9D6), textAlign = TextAlign.Center)
-            Spacer(Modifier.height(18.dp))
-            Spacer(Modifier.height(14.dp))
-            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xCC192541))) {
-                Column(Modifier.fillMaxWidth().padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("כפתור הצעת הסיבוב בפינת המסך", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(8.dp))
-                    Text(when (hidden) { true -> "הכפתור מוסתר"; false -> "הכפתור מוצג"; null -> "מצב לא ידוע — נדרשת הרשאת Root" }, color = Mint, fontSize = 14.sp)
-                    Spacer(Modifier.height(6.dp))
-                    Text(message, color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = onHideSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != true, colors = ButtonDefaults.buttonColors(containerColor = Blue)) { Text("הסתרת הכפתור") }
-                    OutlinedButton(onClick = onShowSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != false) { Text("החזרת הכפתור") }
-                    Divider(color = Color(0x334477FF), modifier = Modifier.padding(vertical = 10.dp))
-                    Text("רגישות חיישן הסיבוב", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
-                    Text("ככל שהערך גבוה יותר, צריך להטות את המכשיר חזק יותר כדי לסובב את המסך", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
-                    Text("${sensitivityDegrees}° — ${when { sensitivityDegrees < 10 -> "רגיש"; sensitivityDegrees < 20 -> "בינוני"; else -> "דורש הטיה חזקה" }}", color = Mint, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Slider(
-                        value = sensitivityDegrees.toFloat(),
-                        onValueChange = { onSensitivityChange(it.toInt()) },
-                        valueRange = 0f..30f,
-                        steps = 5
-                    )
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("רגיש", color = Color(0xFF8795B8), fontSize = 11.sp)
-                        Text("דורש הטיה חזקה", color = Color(0xFF8795B8), fontSize = 11.sp)
+            TabRow(selectedTabIndex = selectedTab, containerColor = Color(0xCC192541), contentColor = Mint) {
+                Tab(selected = selectedTab == 0, onClick = { selectedTab = 0 }, text = { Text("כפתורי הצעה") })
+                Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("סיבוב אמיתי") })
+            }
+            Spacer(Modifier.height(12.dp))
+            Card(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xCC192541))) {
+                Column(
+                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    if (selectedTab == 0) {
+                        Text("כפתור הצעת הסיבוב בפינת המסך", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(8.dp))
+                        Text(when (hidden) { true -> "הכפתור מוסתר"; false -> "הכפתור מוצג"; null -> "מצב לא ידוע — נדרשת הרשאת Root" }, color = Mint, fontSize = 14.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Text(message, color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(14.dp))
+                        Button(onClick = onHideSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != true, colors = ButtonDefaults.buttonColors(containerColor = Blue)) { Text("הסתרת הכפתור") }
+                        OutlinedButton(onClick = onShowSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != false) { Text("החזרת הכפתור") }
+                    } else {
+                        Text("סיבוב מסך אמיתי", color = Color.White, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                        Text("הפעולות האלו נמצאות כאן בנפרד מכפתור ההצעה של Android", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
+                        Spacer(Modifier.height(14.dp))
+                        Text("רגישות חיישן הסיבוב", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                        Text("ערך גבוה דורש הטיה חזקה ואיטית יותר לפני החלפת כיוון", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
+                        Text("${sensitivityDegrees}° — ${when { sensitivityDegrees < 10 -> "רגיש"; sensitivityDegrees < 20 -> "בינוני"; else -> "דורש הטיה חזקה" }}", color = Mint, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Slider(value = sensitivityDegrees.toFloat(), onValueChange = { onSensitivityChange(it.toInt()) }, valueRange = 0f..30f, steps = 5)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("רגיש", color = Color(0xFF8795B8), fontSize = 11.sp)
+                            Text("דורש הטיה חזקה", color = Color(0xFF8795B8), fontSize = 11.sp)
+                        }
+                        Divider(color = Color(0x334477FF), modifier = Modifier.padding(vertical = 12.dp))
+                        Button(onClick = onStartFullRotation, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Mint)) {
+                            Text("הפעלת סיבוב מלא 360°", color = Navy, fontWeight = FontWeight.Bold)
+                        }
+                        OutlinedButton(onClick = onStartPortraitOnly, modifier = Modifier.fillMaxWidth()) { Text("מצב אנכי בלבד — 0° / 180°") }
+                        OutlinedButton(onClick = onStopFullRotation, modifier = Modifier.fillMaxWidth()) { Text("הפסקת סיבוב ונעילת הכיוון הנוכחי") }
+                        Text("לאחר ההפסקה המסך יישאר בכיוון שבו הוא נמצא. הסיבוב האוטומטי לא יופעל מחדש.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
                     }
-                    Divider(color = Color(0x334477FF), modifier = Modifier.padding(vertical = 10.dp))
-                    Text("סיבוב מלא 360°", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                    Text("כולל מצב הפוך של 180° — גם אם Android מסתיר אותו כברירת מחדל", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
-                    Spacer(Modifier.height(10.dp))
-                    Button(onClick = onStartFullRotation, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Mint)) {
-                        Text("הפעלת סיבוב מלא", color = Navy, fontWeight = FontWeight.Bold)
-                    }
-                    OutlinedButton(onClick = onStartPortraitOnly, modifier = Modifier.fillMaxWidth()) {
-                        Text("מצב אנכי בלבד — 0° / 180°")
-                    }
-                    OutlinedButton(onClick = onStopFullRotation, modifier = Modifier.fillMaxWidth()) { Text("הפסקת סיבוב") }
-                    Text("בחר סיבוב מלא לכל ארבעת הכיוונים, או מצב אנכי בלבד ללא שכיבה לצדדים. נדרשת הרשאת Root.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
-                    Text("הפעולה משנה את הגדרת Android דרך Root ואינה מכבה את הסיבוב האוטומטי.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
                 }
             }
-            Spacer(Modifier.weight(1f))
+            Spacer(Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.Settings, null, tint = Color(0xFF8795B8), modifier = Modifier.size(15.dp))
                 Spacer(Modifier.width(6.dp))
