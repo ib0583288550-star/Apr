@@ -61,38 +61,28 @@ class FullRotationService : Service() {
                             if (orientation in 135..225) 2 else 0
                         } else nearestQuadrant
                     } else if (portraitOnly) {
-                        // Require a stronger tilt before switching between 0° and 180°.
                         val currentCenter = lastSensorQuadrant * 90
                         val distance = kotlin.math.abs(((orientation - currentCenter + 540) % 360) - 180)
                         if (distance > 135 + sensitivity) {
                             lastSensorQuadrant = if (lastSensorQuadrant == 0) 2 else 0
                         }
                     } else {
-                        // Hysteresis: keep the current direction until the device passes
-                        // the normal 45° boundary plus the selected sensitivity margin.
                         val currentCenter = lastSensorQuadrant * 90
                         val distance = kotlin.math.abs(((orientation - currentCenter + 540) % 360) - 180)
                         if (distance > 45 + sensitivity) lastSensorQuadrant = nearestQuadrant
                     }
 
-                    val rotation = if (portraitOnly) {
-                        lastSensorQuadrant
-                    } else {
-                        // Sensor landscape quadrants are opposite to Surface rotation numbering.
-                        when (lastSensorQuadrant) {
-                            1 -> 3
-                            3 -> 1
-                            else -> lastSensorQuadrant
-                        }
+                    val rotation = if (portraitOnly) lastSensorQuadrant else when (lastSensorQuadrant) {
+                        1 -> 3
+                        3 -> 1
+                        else -> lastSensorQuadrant
                     }
 
                     if (rotation != lastRotation) {
                         lastRotation = rotation
                         thread {
                             val result = runRoot("wm set-user-rotation lock $rotation")
-                            if (result.first != 0) {
-                                runRoot("settings put system user_rotation $rotation")
-                            }
+                            if (result.first != 0) runRoot("settings put system user_rotation $rotation")
                         }
                     }
                 }
@@ -115,8 +105,16 @@ class FullRotationService : Service() {
     override fun onDestroy() {
         listener?.disable()
         listener = null
+        // Keep the display fixed at its last orientation. Do not restore free/automatic rotation.
+        val rotationToKeep = lastRotation
         thread {
-            runRoot("wm set-user-rotation free; settings put system accelerometer_rotation 1")
+            val rotation = if (rotationToKeep in 0..3) {
+                rotationToKeep
+            } else {
+                val result = runRoot("settings get system user_rotation")
+                result.second.toIntOrNull()?.coerceIn(0, 3) ?: 0
+            }
+            runRoot("settings put system accelerometer_rotation 0; wm set-user-rotation lock $rotation")
         }
         super.onDestroy()
     }
