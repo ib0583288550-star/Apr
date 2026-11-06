@@ -37,6 +37,7 @@ class MainActivity : ComponentActivity() {
     private var refreshState by mutableIntStateOf(0)
     private var rotationSuggestionHidden by mutableStateOf<Boolean?>(null)
     private var message by mutableStateOf("בדיקת הרשאת Root נדרשת להפעלת האפשרות")
+    private var sensitivityDegrees by mutableIntStateOf(15)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,17 +50,21 @@ class MainActivity : ComponentActivity() {
                     refreshKey = refreshState,
                     hidden = rotationSuggestionHidden,
                     message = message,
+                    sensitivityDegrees = sensitivityDegrees,
+                    onSensitivityChange = { sensitivityDegrees = it },
                     onHideSuggestion = { setRotationSuggestion(true) },
                     onShowSuggestion = { setRotationSuggestion(false) },
                     onStartFullRotation = {
                         val serviceIntent = Intent(this, FullRotationService::class.java)
                             .putExtra(FullRotationService.EXTRA_PORTRAIT_ONLY, false)
+                            .putExtra(FullRotationService.EXTRA_SENSITIVITY, sensitivityDegrees)
                         startForegroundService(serviceIntent)
                         message = "מפעיל סיבוב מלא 360° דרך Root…"
                     },
                     onStartPortraitOnly = {
                         val serviceIntent = Intent(this, FullRotationService::class.java)
                             .putExtra(FullRotationService.EXTRA_PORTRAIT_ONLY, true)
+                            .putExtra(FullRotationService.EXTRA_SENSITIVITY, sensitivityDegrees)
                         startForegroundService(serviceIntent)
                         message = "מפעיל מצב אנכי בלבד: 0° ו־180°…"
                     },
@@ -134,6 +139,8 @@ private fun RotationScreen(
     refreshKey: Int,
     hidden: Boolean?,
     message: String,
+    sensitivityDegrees: Int,
+    onSensitivityChange: (Int) -> Unit,
     onHideSuggestion: () -> Unit,
     onShowSuggestion: () -> Unit,
     onStartFullRotation: () -> Unit,
@@ -164,6 +171,20 @@ private fun RotationScreen(
                     Spacer(Modifier.height(12.dp))
                     Button(onClick = onHideSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != true, colors = ButtonDefaults.buttonColors(containerColor = Blue)) { Text("הסתרת הכפתור") }
                     OutlinedButton(onClick = onShowSuggestion, modifier = Modifier.fillMaxWidth(), enabled = hidden != false) { Text("החזרת הכפתור") }
+                    Divider(color = Color(0x334477FF), modifier = Modifier.padding(vertical = 10.dp))
+                    Text("רגישות חיישן הסיבוב", color = Color.White, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                    Text("ככל שהערך גבוה יותר, צריך להטות את המכשיר חזק יותר כדי לסובב את המסך", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
+                    Text("${sensitivityDegrees}° — ${when { sensitivityDegrees < 10 -> "רגיש"; sensitivityDegrees < 20 -> "בינוני"; else -> "דורש הטיה חזקה" }}", color = Mint, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Slider(
+                        value = sensitivityDegrees.toFloat(),
+                        onValueChange = { onSensitivityChange(it.toInt()) },
+                        valueRange = 0f..30f,
+                        steps = 5
+                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("רגיש", color = Color(0xFF8795B8), fontSize = 11.sp)
+                        Text("דורש הטיה חזקה", color = Color(0xFF8795B8), fontSize = 11.sp)
+                    }
                     Divider(color = Color(0x334477FF), modifier = Modifier.padding(vertical = 10.dp))
                     Text("סיבוב מלא 360°", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
                     Text("כולל מצב הפוך של 180° — גם אם Android מסתיר אותו כברירת מחדל", color = Color(0xFFADB9D6), fontSize = 12.sp, textAlign = TextAlign.Center)
