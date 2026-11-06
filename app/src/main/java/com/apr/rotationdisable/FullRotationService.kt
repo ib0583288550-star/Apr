@@ -12,15 +12,20 @@ import android.hardware.SensorManager
 import kotlin.concurrent.thread
 
 class FullRotationService : Service() {
+    companion object {
+        const val EXTRA_PORTRAIT_ONLY = "portrait_only"
+    }
+
     private var listener: OrientationEventListener? = null
     @Volatile private var lastRotation = -1
+    @Volatile private var portraitOnly = false
 
     override fun onCreate() {
         super.onCreate()
         val manager = getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
             manager.createNotificationChannel(
-                NotificationChannel("full_rotation", "סיבוב מסך מלא", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel("full_rotation", "סיבוב מסך", NotificationManager.IMPORTANCE_LOW)
             )
         }
         val notification = if (Build.VERSION.SDK_INT >= 26) {
@@ -29,34 +34,49 @@ class FullRotationService : Service() {
             @Suppress("DEPRECATION")
             Notification.Builder(this)
         }.setSmallIcon(android.R.drawable.ic_menu_rotate)
-            .setContentTitle("סיבוב מלא 360° פעיל")
-            .setContentText("כולל סיבוב הפוך של 180°")
+            .setContentTitle("בקרת סיבוב מסך פעילה")
+            .setContentText("הסיבוב נשלט לפי מצב המכשיר")
             .setOngoing(true)
             .build()
         startForeground(77, notification)
+        thread { runRoot("settings put system accelerometer_rotation 0") }
+    }
 
-        thread {
-            runRoot("settings put system accelerometer_rotation 0")
-        }
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        portraitOnly = intent?.getBooleanExtra(EXTRA_PORTRAIT_ONLY, false) ?: portraitOnly
+        lastRotation = -1
+        if (listener == null) {
+            listener = object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
+                override fun onOrientationChanged(orientation: Int) {
+                    if (orientation == ORIENTATION_UNKNOWN) return
 
-        listener = object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
-            override fun onOrientationChanged(orientation: Int) {
-                if (orientation == ORIENTATION_UNKNOWN) return
-                // Four quadrants: 0°, 90°, 180° and 270°.
-                val rotation = ((orientation + 45) / 90) % 4
-                if (rotation != lastRotation) {
-                    lastRotation = rotation
-                    thread {
-                        // WindowManager's shell command allows selecting all four Surface rotations.
-                        val result = runRoot("wm set-user-rotation lock $rotation")
-                        if (result.first != 0) {
-                            runRoot("settings put system user_rotation $rotation")
+                    val rotation = if (portraitOnly) {
+                        // Portrait-only: upright (0°) or upside-down portrait (180°).
+                        if (orientation in 135..225) 2 else 0
+                    } else {
+                        // Sensor landscape quadrants are opposite to Surface rotation numbering.
+                        val quadrant = ((orientation + 45) / 90) % 4
+                        when (quadrant) {
+                            1 -> 3
+                            3 -> 1
+                            else -> quadrant
+                        }
+                    }
+
+                    if (rotation != lastRotation) {
+                        lastRotation = rotation
+                        thread {
+                            val result = runRoot("wm set-user-rotation lock $rotation")
+                            if (result.first != 0) {
+                                runRoot("settings put system user_rotation $rotation")
+                            }
                         }
                     }
                 }
             }
+            listener?.enable()
         }
-        listener?.enable()
+        return START_STICKY
     }
 
     private fun runRoot(command: String): Pair<Int, String> {
@@ -68,8 +88,6 @@ class FullRotationService : Service() {
             1 to (e.message ?: "Root unavailable")
         }
     }
-
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
 
     override fun onDestroy() {
         listener?.disable()
