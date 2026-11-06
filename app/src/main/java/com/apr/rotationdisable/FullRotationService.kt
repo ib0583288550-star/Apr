@@ -14,11 +14,14 @@ import kotlin.concurrent.thread
 class FullRotationService : Service() {
     companion object {
         const val EXTRA_PORTRAIT_ONLY = "portrait_only"
+        const val EXTRA_SENSITIVITY = "sensitivity_degrees"
     }
 
     private var listener: OrientationEventListener? = null
     @Volatile private var lastRotation = -1
     @Volatile private var portraitOnly = false
+    @Volatile private var sensitivity = 15
+    @Volatile private var lastSensorQuadrant = -1
 
     override fun onCreate() {
         super.onCreate()
@@ -44,22 +47,42 @@ class FullRotationService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         portraitOnly = intent?.getBooleanExtra(EXTRA_PORTRAIT_ONLY, false) ?: portraitOnly
+        sensitivity = (intent?.getIntExtra(EXTRA_SENSITIVITY, sensitivity) ?: sensitivity).coerceIn(0, 30)
         lastRotation = -1
+        lastSensorQuadrant = -1
         if (listener == null) {
             listener = object : OrientationEventListener(this, SensorManager.SENSOR_DELAY_NORMAL) {
                 override fun onOrientationChanged(orientation: Int) {
                     if (orientation == ORIENTATION_UNKNOWN) return
 
+                    val nearestQuadrant = ((orientation + 45) / 90) % 4
+                    if (lastSensorQuadrant < 0) {
+                        lastSensorQuadrant = if (portraitOnly) {
+                            if (orientation in 135..225) 2 else 0
+                        } else nearestQuadrant
+                    } else if (portraitOnly) {
+                        // Require a stronger tilt before switching between 0° and 180°.
+                        val currentCenter = lastSensorQuadrant * 90
+                        val distance = kotlin.math.abs(((orientation - currentCenter + 540) % 360) - 180)
+                        if (distance > 135 + sensitivity) {
+                            lastSensorQuadrant = if (lastSensorQuadrant == 0) 2 else 0
+                        }
+                    } else {
+                        // Hysteresis: keep the current direction until the device passes
+                        // the normal 45° boundary plus the selected sensitivity margin.
+                        val currentCenter = lastSensorQuadrant * 90
+                        val distance = kotlin.math.abs(((orientation - currentCenter + 540) % 360) - 180)
+                        if (distance > 45 + sensitivity) lastSensorQuadrant = nearestQuadrant
+                    }
+
                     val rotation = if (portraitOnly) {
-                        // Portrait-only: upright (0°) or upside-down portrait (180°).
-                        if (orientation in 135..225) 2 else 0
+                        lastSensorQuadrant
                     } else {
                         // Sensor landscape quadrants are opposite to Surface rotation numbering.
-                        val quadrant = ((orientation + 45) / 90) % 4
-                        when (quadrant) {
+                        when (lastSensorQuadrant) {
                             1 -> 3
                             3 -> 1
-                            else -> quadrant
+                            else -> lastSensorQuadrant
                         }
                     }
 
