@@ -52,8 +52,16 @@ class MainActivity : ComponentActivity() {
                     onHideSuggestion = { setRotationSuggestion(true) },
                     onShowSuggestion = { setRotationSuggestion(false) },
                     onStartFullRotation = {
-                        startForegroundService(Intent(this, FullRotationService::class.java))
-                        message = "מפעיל סיבוב מלא דרך Root…"
+                        val serviceIntent = Intent(this, FullRotationService::class.java)
+                            .putExtra(FullRotationService.EXTRA_PORTRAIT_ONLY, false)
+                        startForegroundService(serviceIntent)
+                        message = "מפעיל סיבוב מלא 360° דרך Root…"
+                    },
+                    onStartPortraitOnly = {
+                        val serviceIntent = Intent(this, FullRotationService::class.java)
+                            .putExtra(FullRotationService.EXTRA_PORTRAIT_ONLY, true)
+                        startForegroundService(serviceIntent)
+                        message = "מפעיל מצב אנכי בלבד: 0° ו־180°…"
                     },
                     onStopFullRotation = {
                         stopService(Intent(this, FullRotationService::class.java))
@@ -129,6 +137,7 @@ private fun RotationScreen(
     onHideSuggestion: () -> Unit,
     onShowSuggestion: () -> Unit,
     onStartFullRotation: () -> Unit,
+    onStartPortraitOnly: () -> Unit,
     onStopFullRotation: () -> Unit
 ) {
     Box(
@@ -162,8 +171,11 @@ private fun RotationScreen(
                     Button(onClick = onStartFullRotation, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Mint)) {
                         Text("הפעלת סיבוב מלא", color = Navy, fontWeight = FontWeight.Bold)
                     }
-                    OutlinedButton(onClick = onStopFullRotation, modifier = Modifier.fillMaxWidth()) { Text("הפסקת סיבוב מלא") }
-                    Text("המצב המלא נשאר פעיל כל עוד השירות פועל. נדרשת הרשאת Root.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
+                    OutlinedButton(onClick = onStartPortraitOnly, modifier = Modifier.fillMaxWidth()) {
+                        Text("מצב אנכי בלבד — 0° / 180°")
+                    }
+                    OutlinedButton(onClick = onStopFullRotation, modifier = Modifier.fillMaxWidth()) { Text("הפסקת סיבוב") }
+                    Text("בחר סיבוב מלא לכל ארבעת הכיוונים, או מצב אנכי בלבד ללא שכיבה לצדדים. נדרשת הרשאת Root.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
                     Text("הפעולה משנה את הגדרת Android דרך Root ואינה מכבה את הסיבוב האוטומטי.", color = Color(0xFF8795B8), fontSize = 11.sp, textAlign = TextAlign.Center)
                 }
             }
