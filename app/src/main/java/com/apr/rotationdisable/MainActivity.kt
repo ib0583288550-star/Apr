@@ -340,13 +340,27 @@ class RootUserManager {
     private fun runRootDetailed(command: String): Pair<String, Int> {
         return try {
             val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
-            val output = BufferedReader(InputStreamReader(process.inputStream)).use { it.readText() }.trim()
+            val output = StringBuilder()
+            val reader = Thread {
+                try {
+                    BufferedReader(InputStreamReader(process.inputStream)).use { stream ->
+                        while (true) {
+                            val line = stream.readLine() ?: break
+                            synchronized(output) { output.append(line).append('\\n') }
+                        }
+                    }
+                } catch (_: Exception) { }
+            }
+            reader.start()
             val finished = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
             if (!finished) {
                 process.destroyForcibly()
+                reader.join(1000)
                 return "הפקודה לא הסתיימה בתוך 30 שניות" to -1
             }
-            output to process.exitValue()
+            reader.join(2000)
+            val text = synchronized(output) { output.toString().trim() }
+            text to process.exitValue()
         } catch (e: Exception) {
             "שגיאת Root: ${e.message ?: "unknown"}" to -1
         }
