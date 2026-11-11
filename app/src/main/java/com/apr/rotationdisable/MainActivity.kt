@@ -341,16 +341,18 @@ class RootUserManager {
         return try {
             val process = ProcessBuilder("su", "-c", command).redirectErrorStream(true).start()
             val output = StringBuilder()
-            val reader = Thread {
+            val reader = Thread(Runnable {
+                val stream: BufferedReader = BufferedReader(InputStreamReader(process.inputStream))
                 try {
-                    BufferedReader(InputStreamReader(process.inputStream)).use { stream ->
-                        while (true) {
-                            val line = stream.readLine() ?: break
-                            synchronized(output) { output.append(line).append('\\n') }
-                        }
+                    while (true) {
+                        val line: String = stream.readLine() ?: break
+                        synchronized(output) { output.append(line).append('\n') }
                     }
-                } catch (_: Exception) { }
-            }
+                } catch (_: Exception) {
+                } finally {
+                    try { stream.close() } catch (_: Exception) { }
+                }
+            })
             reader.start()
             val finished = process.waitFor(30, java.util.concurrent.TimeUnit.SECONDS)
             if (!finished) {
