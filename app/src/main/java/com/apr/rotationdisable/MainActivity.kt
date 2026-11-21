@@ -41,6 +41,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        sensitivityDegrees = savedInstanceState?.getInt("sensitivityDegrees", 15) ?: 15
         window.statusBarColor = android.graphics.Color.rgb(8, 13, 29)
         window.navigationBarColor = android.graphics.Color.rgb(8, 13, 29)
         refreshRotationSuggestion()
@@ -74,6 +75,11 @@ class MainActivity : ComponentActivity() {
                 )
             }
         }
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        outState.putInt("sensitivityDegrees", sensitivityDegrees)
+        super.onSaveInstanceState(outState)
     }
 
     override fun onResume() {
@@ -145,13 +151,16 @@ private fun RotationScreen(
     onStartPortraitOnly: () -> Unit,
     onStopFullRotation: () -> Unit
 ) {
-    var selectedTab by remember { mutableIntStateOf(0) }
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
     Box(
         modifier = Modifier.fillMaxSize()
             .background(Brush.verticalGradient(listOf(Color(0xFF101A38), Navy, Color(0xFF17102D))))
-            .systemBarsPadding().padding(horizontal = 18.dp, vertical = 12.dp)
+            .systemBarsPadding()
     ) {
-        Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 18.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Spacer(Modifier.height(6.dp))
             Box(Modifier.size(66.dp).shadow(22.dp, CircleShape).background(Brush.linearGradient(listOf(Blue, Violet)), CircleShape), contentAlignment = Alignment.Center) {
                 Icon(Icons.Filled.ScreenRotation, null, tint = Color.White, modifier = Modifier.size(38.dp))
@@ -165,9 +174,9 @@ private fun RotationScreen(
                 Tab(selected = selectedTab == 1, onClick = { selectedTab = 1 }, text = { Text("סיבוב אמיתי") })
             }
             Spacer(Modifier.height(12.dp))
-            Card(Modifier.fillMaxWidth().weight(1f), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xCC192541))) {
+            Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(containerColor = Color(0xCC192541))) {
                 Column(
-                    Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+                    Modifier.fillMaxWidth().padding(16.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     if (selectedTab == 0) {
